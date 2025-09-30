@@ -33,22 +33,17 @@ const userService = require('../services/userService');
 const register = async (req, res) => {
   const { name, email, password } = req.body;
 
-  // Проверка обязательных полей
   if (!name || !email || !password) {
     return res.status(400).json({ message: 'Все поля обязательны для заполнения.' });
   }
 
   try {
-    // Проверка, если пользователь с таким email уже существует
     const existingUser = await userService.findUserByEmail(email);
     if (existingUser) {
       return res.status(400).json({ message: 'Пользователь с таким email уже существует.' });
     }
-
-    // Хешируем пароль перед сохранением в базе данных
     const hashedPassword = await authService.hashPassword(password);
     
-    // Создаем нового пользователя
     const newUser = await userService.createUser(name, email, hashedPassword);
 
     return res.status(201).json({
@@ -90,25 +85,20 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   const { email, password } = req.body;
 
-  // Проверка обязательных полей
   if (!email || !password) {
     return res.status(400).json({ message: 'Email и пароль обязательны для входа.' });
   }
 
   try {
-    // Ищем пользователя по email
     const user = await userService.findUserByEmail(email);
     if (!user) {
       return res.status(401).json({ message: 'Неверный email или пароль.' });
     }
-
-    // Проверяем пароль с использованием bcrypt
     const isPasswordValid = await authService.comparePassword(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Неверный email или пароль.' });
     }
 
-    // Генерируем токен для пользователя
     const token = authService.generateToken(user.id);
     return res.status(200).json({ message: 'Успешный логин.', token });
   } catch (error) {
@@ -117,14 +107,10 @@ const login = async (req, res) => {
   }
 };
 
-/**
- * Получение данных профиля пользователя
- */
 const getProfile = async (req, res) => {
-  const userId = req.userId; // Получаем id из токена, добавленного в middleware
-
+  const userId = req.userId; 
   try {
-    // Ищем пользователя по id
+    
     const user = await userService.findUserById(userId);
     if (!user) {
       return res.status(401).json({ message: 'Пользователь не найден.' });

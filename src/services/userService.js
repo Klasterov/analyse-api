@@ -1,42 +1,58 @@
+const pool = require('../db');
 const bcrypt = require('bcryptjs');
 
-let users = []; // Временное хранилище пользователей
-
-/**
- * Создание нового пользователя
- */
 const createUser = async (name, email, password) => {
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const newUser = { id: users.length + 1, name, email, password: hashedPassword };
-  users.push(newUser);
-  return newUser;
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email',
+      [name, email, hashedPassword]
+    );
+    return result.rows[0];
+  } catch (error) {
+    console.error('Ошибка в createUser:', error);
+    throw error;
+  }
 };
 
-/**
- * Поиск пользователя по email
- */
-const findUserByEmail = (email) => {
-  return users.find(user => user.email === email);
+const findUserByEmail = async (email) => {
+  const result = await pool.query(
+    'SELECT * FROM users WHERE email = $1',
+    [email]
+  );
+  return result.rows[0];
 };
 
-/**
- * Поиск пользователя по id
- */
-const findUserById = (id) => {
-  return users.find(user => user.id === id);
+const findUserById = async (id) => {
+  const result = await pool.query(
+    'SELECT id, name, email FROM users WHERE id = $1',
+    [id]
+  );
+  return result.rows[0];
 };
 
-/**
- * Обновление данных пользователя
- */
 const updateUser = async (id, data) => {
-  const user = users.find(u => u.id === id);
-  if (!user) throw new Error('Пользователь не найден.');
+  const fields = [];
+  const values = [id];
 
-  user.name = data.name || user.name;
-  user.email = data.email || user.email;
+  if (data.name) {
+    fields.push(`name = $${values.length + 1}`);
+    values.push(data.name);
+  }
+  if (data.email) {
+    fields.push(`email = $${values.length + 1}`);
+    values.push(data.email);
+  }
 
-  return user;
+  const query = `UPDATE users SET ${fields.join(', ')} WHERE id = $1 RETURNING id, name, email`;
+
+  const result = await pool.query(query, values);
+  return result.rows[0];
 };
 
-module.exports = { createUser, findUserByEmail, findUserById, updateUser };
+module.exports = {
+  createUser,
+  findUserByEmail,
+  findUserById,
+  updateUser,
+};
