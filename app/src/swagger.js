@@ -1,11 +1,9 @@
+// src/swagger.js
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 
-/**
- * Настройки Swagger.
- */
 const options = {
-  swaggerDefinition: {
+  definition: { // ← БЫЛО: swaggerDefinition → СТАЛО: definition
     openapi: '3.0.0',
     info: {
       title: 'Node.js API with JWT Authentication',
@@ -14,11 +12,15 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000/api',
+        url: 'http://localhost:3000/api', // ← твой сервер
       },
     ],
   },
-  apis: ['./routes/*.js', './controllers/*.js', './models/*.js'], // Путь к файлам с аннотациями
+  apis: [
+    './src/routes/*.js',       // ← добавлено src/
+    './src/controllers/*.js',  // ← добавлено src/
+    './src/models/*.js'        // ← добавлено src/
+  ],
 };
 
 const specs = swaggerJsdoc(options);
