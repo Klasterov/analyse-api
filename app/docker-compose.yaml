@@ -1,4 +1,3 @@
-# docker-compose.yml (без version!)
 services:
   node-app:
     build: .

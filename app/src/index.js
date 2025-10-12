@@ -9,7 +9,7 @@ app.use(express.json());
 
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-app.use('/api', authRoutes);
+app.use('/api/auth', authRoutes);
 
 
 const PORT = process.env.PORT || 3000;
