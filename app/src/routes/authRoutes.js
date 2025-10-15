@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { updateUser } = require('../services/userService'); // Импорт сервиса обновления
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
 
@@ -145,6 +146,94 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Обновление пользователя
+ * @swagger
+ * /auth/update/{id}:
+ *   put:
+ *     summary: Обновление информации пользователя
+ *     description: Обновляет информацию пользователя по его ID.
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID пользователя для обновления
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Информация пользователя обновлена
+ *       400:
+ *         description: Неверные данные или несуществующий пользователь
+ *       404:
+ *         description: Пользователь не найден
+ */
+router.put('/update/:id', async (req, res) => {
+  const { name, email, password } = req.body;
+  const userId = req.params.id;
+
+  try {
+    const updatedUser = await updateUser(userId, { name, email, password });
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.status(200).json({ message: 'User updated successfully', user: updatedUser });
+  } catch (err) {
+    console.error('Update error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * Удаление пользователя
+ * @swagger
+ * /auth/delete/{id}:
+ *   delete:
+ *     summary: Удаление пользователя
+ *     description: Удаляет пользователя по его ID.
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID пользователя для удаления
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Пользователь удалён
+ *       404:
+ *         description: Пользователь не найден
+ */
+router.delete('/delete/:id', async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Delete error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -107,10 +107,22 @@ const login = async (req, res) => {
   }
 };
 
+/**
+ * Получение профиля пользователя
+ * @swagger
+ * /profile:
+ *   get:
+ *     summary: Получить профиль пользователя
+ *     description: Получение данных текущего пользователя.
+ *     responses:
+ *       200:
+ *         description: Профиль пользователя
+ *       401:
+ *         description: Пользователь не авторизован
+ */
 const getProfile = async (req, res) => {
   const userId = req.userId; 
   try {
-    
     const user = await userService.findUserById(userId);
     if (!user) {
       return res.status(401).json({ message: 'Пользователь не найден.' });
@@ -123,4 +135,129 @@ const getProfile = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getProfile };
+/**
+ * Обновление данных пользователя
+ * @swagger
+ * /auth/update/{id}:
+ *   put:
+ *     summary: Обновление информации о пользователе
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID пользователя, которого нужно обновить
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "John Doe"
+ *               email:
+ *                 type: string
+ *                 example: "john@example.com"
+ *               password:
+ *                 type: string
+ *                 example: "newPassword123"
+ *     responses:
+ *       200:
+ *         description: Данные пользователя обновлены
+ *       400:
+ *         description: Ошибка валидации или пользователь не найден
+ */
+const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { name, email, password } = req.body;
+
+  if (!name && !email && !password) {
+    return res.status(400).json({ message: 'Для обновления необходимо передать хотя бы одно поле.' });
+  }
+
+  try {
+    const user = await userService.findUserById(id);
+    if (!user) {
+      return res.status(404).json({ message: 'Пользователь не найден.' });
+    }
+
+    const fieldsToUpdate = [];
+    const values = [];
+
+    if (name) {
+      fieldsToUpdate.push('name = $' + (fieldsToUpdate.length + 1));
+      values.push(name);
+    }
+
+    if (email) {
+      fieldsToUpdate.push('email = $' + (fieldsToUpdate.length + 1));
+      values.push(email);
+    }
+
+    if (password) {
+      const hashedPassword = await authService.hashPassword(password);
+      fieldsToUpdate.push('password = $' + (fieldsToUpdate.length + 1));
+      values.push(hashedPassword);
+    }
+
+    values.push(id);
+
+    const query = `
+      UPDATE users
+      SET ${fieldsToUpdate.join(', ')}
+      WHERE id = $${values.length}
+      RETURNING id, name, email;
+    `;
+
+    const result = await userService.updateUser(query, values);
+    return res.status(200).json({
+      message: 'Данные пользователя успешно обновлены.',
+      user: result.rows[0],
+    });
+  } catch (error) {
+    console.error('Ошибка при обновлении данных пользователя:', error);
+    return res.status(500).json({ message: 'Ошибка при обновлении данных пользователя.' });
+  }
+};
+
+/**
+ * Удаление пользователя
+ * @swagger
+ * /auth/delete/{id}:
+ *   delete:
+ *     summary: Удаление пользователя
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID пользователя, которого нужно удалить
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Пользователь удален
+ *       404:
+ *         description: Пользователь не найден
+ */
+const deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await userService.deleteUser(id);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Пользователь не найден.' });
+    }
+
+    res.status(200).json({ message: 'Пользователь успешно удален.' });
+  } catch (error) {
+    console.error('Ошибка при удалении пользователя:', error);
+    return res.status(500).json({ message: 'Ошибка при удалении пользователя.' });
+  }
+};
+
+module.exports = { register, login, getProfile, updateUser, deleteUser };

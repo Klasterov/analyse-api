@@ -1,5 +1,4 @@
-exports.up = async (pgm) => {
-  // 1️⃣ Таблица пользователей
+exports.up = (pgm) => {
   pgm.createTable('users', {
     id: 'id',
     name: { type: 'varchar(100)', notNull: true },
@@ -8,7 +7,6 @@ exports.up = async (pgm) => {
     created_at: { type: 'timestamp', default: pgm.func('current_timestamp') },
   });
 
-  // 2️⃣ Таблица показаний счетчиков
   pgm.createTable('meter_readings', {
     id: 'id',
     user_id: {
@@ -24,26 +22,23 @@ exports.up = async (pgm) => {
     created_at: { type: 'timestamp', default: pgm.func('current_timestamp') },
   });
 
-  // 3️⃣ Индекс для быстрого поиска (уникально по пользователю и месяцу)
   pgm.createIndex('meter_readings', ['user_id', 'month'], { unique: true });
 
-  // 4️⃣ Пример вставки тестового пользователя
-  const result = await pgm.sql(`
+  pgm.sql(`
     INSERT INTO users (name, email, password)
-    VALUES ('Test User', 'test@example.com', 'password123')
-    RETURNING id;
+    VALUES ('Test User', 'test@example.com', 'password123');
   `);
 
-  const userId = result.rows[0].id;
-
-  // 5️⃣ Пример вставки первого показания за прошлый месяц
-  await pgm.sql(`
+  pgm.sql(`
     INSERT INTO meter_readings (user_id, month, previous_value, current_value, difference)
-    VALUES (${userId}, '2025-09', 0, 100, 100);
+    VALUES (
+      (SELECT id FROM users WHERE email = 'test@example.com'),
+      '2025-09', 0, 100, 100
+    );
   `);
 };
 
-exports.down = async (pgm) => {
+exports.down = (pgm) => {
   pgm.dropTable('meter_readings');
   pgm.dropTable('users');
 };
