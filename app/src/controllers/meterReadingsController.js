@@ -2,10 +2,12 @@ const meterReadingsService = require('../services/meterReadingsService');
 
 /**
  * @swagger
- * /meter-readings:
+ * /meter-readings/add:
  *   post:
- *     summary: Создание нового показания
+ *     summary: Добавить показание счётчика для текущего пользователя
  *     tags: [Meter Readings]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -13,24 +15,18 @@ const meterReadingsService = require('../services/meterReadingsService');
  *           schema:
  *             type: object
  *             properties:
- *               user_id:
- *                 type: integer
- *                 example: 1
  *               month:
  *                 type: string
- *                 example: "2025-09"
+ *                 example: "2025-10"
  *               previous_value:
- *                 type: integer
+ *                 type: number
  *                 example: 100
  *               current_value:
- *                 type: integer
+ *                 type: number
  *                 example: 200
- *               difference:
- *                 type: integer
- *                 example: 100
  *     responses:
  *       201:
- *         description: Показание создано
+ *         description: Показание успешно добавлено
  *         content:
  *           application/json:
  *             schema:
@@ -43,17 +39,33 @@ const meterReadingsService = require('../services/meterReadingsService');
  *                 month:
  *                   type: string
  *                 previous_value:
- *                   type: integer
+ *                   type: number
  *                 current_value:
- *                   type: integer
+ *                   type: number
  *                 difference:
- *                   type: integer
- *       400:
- *         description: Ошибка валидации данных
+ *                   type: number
+ *                 created_at:
+ *                   type: string
  */
 exports.createMeterReading = async (req, res) => {
+  const { month, previous_value, current_value } = req.body;
+  const userId = req.userId; 
+
+  if (!month || previous_value == null || current_value == null) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const difference = current_value - previous_value;
+
   try {
-    const meterReading = await meterReadingsService.create(req.body);
+    const meterReading = await meterReadingsService.create({
+      user_id: userId,
+      month,
+      previous_value,
+      current_value,
+      difference
+    });
+
     res.status(201).json(meterReading);
   } catch (error) {
     console.error(error);
@@ -63,13 +75,15 @@ exports.createMeterReading = async (req, res) => {
 
 /**
  * @swagger
- * /meter-readings:
+ * /meter-readings/my:
  *   get:
- *     summary: Получение всех показаний
+ *     summary: Получить все показания текущего пользователя
  *     tags: [Meter Readings]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Список всех показаний
+ *         description: Список показаний пользователя
  *         content:
  *           application/json:
  *             schema:
@@ -84,108 +98,22 @@ exports.createMeterReading = async (req, res) => {
  *                   month:
  *                     type: string
  *                   previous_value:
- *                     type: integer
+ *                     type: number
  *                   current_value:
- *                     type: integer
+ *                     type: number
  *                   difference:
- *                     type: integer
+ *                     type: number
+ *                   created_at:
+ *                     type: string
  */
-exports.getMeterReadings = async (req, res) => {
+exports.getMyMeterReadings = async (req, res) => {
+  const userId = req.userId;
+
   try {
-    const meterReadings = await meterReadingsService.getAll();
+    const meterReadings = await meterReadingsService.getByUserId(userId);
     res.json(meterReadings);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Ошибка при получении показаний' });
-  }
-};
-
-/**
- * @swagger
- * /meter-readings/{id}:
- *   put:
- *     summary: Обновление показания по ID
- *     tags: [Meter Readings]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: ID показания для обновления
- *         schema:
- *           type: integer
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               month:
- *                 type: string
- *               previous_value:
- *                 type: integer
- *               current_value:
- *                 type: integer
- *               difference:
- *                 type: integer
- *     responses:
- *       200:
- *         description: Показание обновлено
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                 user_id:
- *                   type: integer
- *                 month:
- *                   type: string
- *                 previous_value:
- *                   type: integer
- *                 current_value:
- *                   type: integer
- *                 difference:
- *                   type: integer
- */
-exports.updateMeterReading = async (req, res) => {
-  try {
-    const updated = await meterReadingsService.update(req.params.id, req.body);
-    if (!updated) return res.status(404).json({ error: 'Показание не найдено' });
-    res.json(updated);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при обновлении показания' });
-  }
-};
-
-/**
- * @swagger
- * /meter-readings/{id}:
- *   delete:
- *     summary: Удаление показания по ID
- *     tags: [Meter Readings]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         description: ID показания для удаления
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: Показание удалено
- *       404:
- *         description: Показание не найдено
- */
-exports.deleteMeterReading = async (req, res) => {
-  try {
-    const deleted = await meterReadingsService.delete(req.params.id);
-    if (!deleted) return res.status(404).json({ error: 'Показание не найдено' });
-    res.json({ message: 'Показание удалено' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при удалении показания' });
   }
 };

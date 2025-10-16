@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
    "migrate": "docker-compose exec node-app npx node-pg-migrate up",
-  "migrate:undo": "docker-compose exec app npx node-pg-migrate down",
+  "migrate:undo": "docker-compose exec node-app npx node-pg-migrate down",
   "migrate:undo:all": "docker-compose exec app npx node-pg-migrate reset"
   },
   "keywords": [],
